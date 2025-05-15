@@ -1,68 +1,155 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pet Project</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h1>Pet Project Management</h1>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  getDoc,
+  deleteDoc,
+  updateDoc,
+  arrayUnion,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-    <div id="form-section">
-        <input type="text" id="rfid" placeholder="RFID">
-        <input type="text" id="ownerName" placeholder="Owner Name">
-        <input type="text" id="contactNumber" placeholder="Contact Number">
-        <input type="text" id="petName" placeholder="Pet Name">
-        <input type="text" id="species" placeholder="Species">
-        <input type="text" id="breed" placeholder="Breed">
-        <input type="number" id="age" placeholder="Age">
-        <input type="text" id="diagnosis" placeholder="Diagnosis">
-        <button onclick="addPet()">Add / Update Pet</button>
-    </div>
+const firebaseConfig = {
+  apiKey: "AIzaSyAZxkineyP_sEWykl-LqNoAP8mgqXev8qc",
+  authDomain: "pet-project-5192f.firebaseapp.com",
+  projectId: "pet-project-5192f",
+  storageBucket: "pet-project-5192f.appspot.com",
+  messagingSenderId: "458685541624",
+  appId: "1:458685541624:web:978e8e3d4a4156ff251f0d"
+};
 
-    <div id="search-section">
-        <input type="text" id="rfidSearch" placeholder="Scan RFID Card">
-        <button onclick="searchByRFID()">Search</button>
-    </div>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const petsCollection = collection(db, "pets");
+const medicalHistoryCollection = collection(db, "medical_history");
 
-    <h2>All Pets</h2>
-    <table id="petsTable">
-        <thead>
-            <tr>
-                <th>RFID</th>
-                <th>Owner Name</th>
-                <th>Contact Number</th>
-                <th>Pet Name</th>
-                <th>Species</th>
-                <th>Breed</th>
-                <th>Age</th>
-                <th>Diagnosis</th>
-                <th>Medical Records</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+window.addPet = async function() {
+  const rfid = document.getElementById('rfid').value.trim();
+  if (!rfid) return alert('RFID is required');
 
-    <h2>Medical History</h2>
-    <div id="history-section">
-        <input type="text" id="rfidHistorySearch" placeholder="Enter RFID to view history">
-        <button onclick="searchMedicalHistory()">View Medical History</button>
-    </div>
+  const data = {
+    RFID: rfid,
+    ownerName: document.getElementById('ownerName').value,
+    contactNumber: document.getElementById('contactNumber').value,
+    petName: document.getElementById('petName').value,
+    species: document.getElementById('species').value,
+    breed: document.getElementById('breed').value,
+    age: parseInt(document.getElementById('age').value),
+    diagnosis: document.getElementById('diagnosis').value,
+    timestamp: serverTimestamp()
+  };
 
-    <table id="historyTable">
-        <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Pet Name</th>
-                <th>Diagnosis</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+  await setDoc(doc(petsCollection, rfid), data, { merge: true });
+  await addDoc(medicalHistoryCollection, data);
+  window.loadPets();
+};
 
-    <script type="module" src="script_medical_history.js"></script>
-</body>
-</html>
+window.addMedicalRecord = async function(rfid) {
+  const record = prompt('Enter medical record:');
+  if (!record) return;
+
+  const petSnap = await getDoc(doc(petsCollection, rfid));
+  if (!petSnap.exists()) return alert('Pet not found!');
+
+  const petData = petSnap.data();
+
+  await updateDoc(doc(petsCollection, rfid), {
+    medicalRecords: arrayUnion(record)
+  });
+
+  await addDoc(medicalHistoryCollection, {
+    ...petData,
+    diagnosis: record,
+    timestamp: serverTimestamp()
+  });
+
+  window.loadPets();
+};
+
+window.searchMedicalHistory = async function() {
+  const rfid = document.getElementById('rfidHistorySearch').value.trim();
+  if (!rfid) return alert('Enter RFID to search medical history');
+
+  const q = query(medicalHistoryCollection, where("RFID", "==", rfid), orderBy("timestamp", "desc"));
+  const snapshot = await getDocs(q);
+
+  const tableBody = document.querySelector('#historyTable tbody');
+  tableBody.innerHTML = '';
+
+  if (snapshot.empty) {
+    tableBody.innerHTML = '<tr><td colspan="4">No history found</td></tr>';
+    return;
+  }
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const tr = document.createElement('tr');
+    const date = data.timestamp?.toDate().toLocaleString() || 'Pending...';
+    tr.innerHTML = `
+      <td>${date}</td>
+      <td>${data.petName}</td>
+      <td>${data.diagnosis}</td>
+      <td>
+        <button onclick="updateMedicalHistory('${docSnap.id}', '${data.diagnosis}')">Update</button>
+        <button onclick="deleteMedicalHistory('${docSnap.id}')">Delete</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
+};
+
+window.updateMedicalHistory = async function(docId, oldDiagnosis) {
+  const newDiagnosis = prompt('Enter updated diagnosis:', oldDiagnosis);
+  if (!newDiagnosis) return;
+
+  await updateDoc(doc(medicalHistoryCollection, docId), {
+    diagnosis: newDiagnosis,
+    timestamp: serverTimestamp()
+  });
+
+  alert('Record updated.');
+  window.searchMedicalHistory();
+};
+
+window.deleteMedicalHistory = async function(docId) {
+  if (!confirm('Delete this medical history record?')) return;
+  await deleteDoc(doc(medicalHistoryCollection, docId));
+  alert('Record deleted.');
+  window.searchMedicalHistory();
+};
+
+window.loadPets = async function() {
+  const tableBody = document.querySelector('#petsTable tbody');
+  tableBody.innerHTML = '';
+  const snapshot = await getDocs(petsCollection);
+  snapshot.forEach(docSnap => {
+    const pet = docSnap.data();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${pet.RFID}</td>
+      <td>${pet.ownerName}</td>
+      <td>${pet.contactNumber}</td>
+      <td>${pet.petName}</td>
+      <td>${pet.species}</td>
+      <td>${pet.breed}</td>
+      <td>${pet.age}</td>
+      <td>${pet.diagnosis}</td>
+      <td></td>
+      <td>
+        <button onclick="addMedicalRecord('${pet.RFID}')">Add Record</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  window.loadPets();
+});
