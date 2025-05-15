@@ -42,7 +42,7 @@ window.addPet = async function() {
   };
 
   await setDoc(doc(petsCollection, rfid), data, { merge: true });
-  loadPets();
+  window.loadPets();
 };
 
 window.loadPets = async function() {
@@ -85,7 +85,7 @@ window.searchByRFID = async function() {
 window.deletePet = async function(rfid) {
   if (!confirm('Delete this pet?')) return;
   await deleteDoc(doc(petsCollection, rfid));
-  loadPets();
+  window.loadPets();
 };
 
 window.addMedicalRecord = async function(rfid) {
@@ -95,9 +95,9 @@ window.addMedicalRecord = async function(rfid) {
   await updateDoc(doc(petsCollection, rfid), {
     medicalRecords: arrayUnion(record)
   });
-  loadPets();
+  window.loadPets();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadPets();
+  window.loadPets();
 });
