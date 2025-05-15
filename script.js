@@ -8,7 +8,12 @@ import {
   getDoc,
   deleteDoc,
   updateDoc,
-  arrayUnion
+  arrayUnion,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,20 +22,20 @@ const firebaseConfig = {
   projectId: "pet-project-5192f",
   storageBucket: "pet-project-5192f.appspot.com",
   messagingSenderId: "458685541624",
-  appId: "1:458685541624:web:978e8e3d4a4156ff251f0d",
-  measurementId: "G-VX7NZNJ3ZR"
+  appId: "1:458685541624:web:978e8e3d4a4156ff251f0d"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const petsCollection = collection(db, "pets");
+const medicalHistoryCollection = collection(db, "medical_history");
 
 window.addPet = async function() {
   const rfid = document.getElementById('rfid').value.trim();
   if (!rfid) return alert('RFID is required');
 
   const data = {
-    rfid,
+    RFID: rfid,
     ownerName: document.getElementById('ownerName').value,
     contactNumber: document.getElementById('contactNumber').value,
     petName: document.getElementById('petName').value,
@@ -38,11 +43,86 @@ window.addPet = async function() {
     breed: document.getElementById('breed').value,
     age: parseInt(document.getElementById('age').value),
     diagnosis: document.getElementById('diagnosis').value,
-    medicalRecords: []
+    timestamp: serverTimestamp()
   };
 
   await setDoc(doc(petsCollection, rfid), data, { merge: true });
+  await addDoc(medicalHistoryCollection, data);
   window.loadPets();
+};
+
+window.addMedicalRecord = async function(rfid) {
+  const record = prompt('Enter medical record:');
+  if (!record) return;
+
+  const petSnap = await getDoc(doc(petsCollection, rfid));
+  if (!petSnap.exists()) return alert('Pet not found!');
+
+  const petData = petSnap.data();
+
+  await updateDoc(doc(petsCollection, rfid), {
+    medicalRecords: arrayUnion(record)
+  });
+
+  await addDoc(medicalHistoryCollection, {
+    ...petData,
+    diagnosis: record,
+    timestamp: serverTimestamp()
+  });
+
+  window.loadPets();
+};
+
+window.searchMedicalHistory = async function() {
+  const rfid = document.getElementById('rfidHistorySearch').value.trim();
+  if (!rfid) return alert('Enter RFID to search medical history');
+
+  const q = query(medicalHistoryCollection, where("RFID", "==", rfid), orderBy("timestamp", "desc"));
+  const snapshot = await getDocs(q);
+
+  const tableBody = document.querySelector('#historyTable tbody');
+  tableBody.innerHTML = '';
+
+  if (snapshot.empty) {
+    tableBody.innerHTML = '<tr><td colspan="4">No history found</td></tr>';
+    return;
+  }
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const tr = document.createElement('tr');
+    const date = data.timestamp?.toDate().toLocaleString() || 'Pending...';
+    tr.innerHTML = `
+      <td>${date}</td>
+      <td>${data.petName}</td>
+      <td>${data.diagnosis}</td>
+      <td>
+        <button onclick="updateMedicalHistory('${docSnap.id}', '${data.diagnosis}')">Update</button>
+        <button onclick="deleteMedicalHistory('${docSnap.id}')">Delete</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
+};
+
+window.updateMedicalHistory = async function(docId, oldDiagnosis) {
+  const newDiagnosis = prompt('Enter updated diagnosis:', oldDiagnosis);
+  if (!newDiagnosis) return;
+
+  await updateDoc(doc(medicalHistoryCollection, docId), {
+    diagnosis: newDiagnosis,
+    timestamp: serverTimestamp()
+  });
+
+  alert('Record updated.');
+  window.searchMedicalHistory();
+};
+
+window.deleteMedicalHistory = async function(docId) {
+  if (!confirm('Delete this medical history record?')) return;
+  await deleteDoc(doc(medicalHistoryCollection, docId));
+  alert('Record deleted.');
+  window.searchMedicalHistory();
 };
 
 window.loadPets = async function() {
@@ -53,7 +133,7 @@ window.loadPets = async function() {
     const pet = docSnap.data();
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${pet.rfid}</td>
+      <td>${pet.RFID}</td>
       <td>${pet.ownerName}</td>
       <td>${pet.contactNumber}</td>
       <td>${pet.petName}</td>
@@ -61,41 +141,13 @@ window.loadPets = async function() {
       <td>${pet.breed}</td>
       <td>${pet.age}</td>
       <td>${pet.diagnosis}</td>
-      <td>${pet.medicalRecords.join(', ')}</td>
+      <td></td>
       <td>
-        <button onclick="addMedicalRecord('${pet.rfid}')">Add Record</button>
-        <button onclick="deletePet('${pet.rfid}')">Delete</button>
+        <button onclick="addMedicalRecord('${pet.RFID}')">Add Record</button>
       </td>
     `;
     tableBody.appendChild(tr);
   });
-};
-
-window.searchByRFID = async function() {
-  const rfid = document.getElementById('rfidSearch').value.trim();
-  if (!rfid) return alert('Enter RFID to search');
-
-  const docSnap = await getDoc(doc(petsCollection, rfid));
-  if (!docSnap.exists()) return alert('No data found for RFID: ' + rfid);
-
-  const pet = docSnap.data();
-  alert(`Owner: ${pet.ownerName}\nPet: ${pet.petName}\nDiagnosis: ${pet.diagnosis}`);
-};
-
-window.deletePet = async function(rfid) {
-  if (!confirm('Delete this pet?')) return;
-  await deleteDoc(doc(petsCollection, rfid));
-  window.loadPets();
-};
-
-window.addMedicalRecord = async function(rfid) {
-  const record = prompt('Enter medical record:');
-  if (!record) return;
-
-  await updateDoc(doc(petsCollection, rfid), {
-    medicalRecords: arrayUnion(record)
-  });
-  window.loadPets();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
