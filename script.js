@@ -1,18 +1,21 @@
 import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZxkineyP_sEWykl-LqNoAP8mgqXev8qc",
   authDomain: "pet-project-5192f.firebaseapp.com",
   projectId: "pet-project-5192f",
-  storageBucket: "pet-project-5192f.firebasestorage.app",
+  storageBucket: "pet-project-5192f.appspot.com",
   messagingSenderId: "458685541624",
   appId: "1:458685541624:web:978e8e3d4a4156ff251f0d",
   measurementId: "G-VX7NZNJ3ZR"
 };
 
 const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 const analytics = getAnalytics(app);
+const petsCollection = collection(db, 'pets');
 
 async function addPet() {
     const rfid = document.getElementById('rfid').value.trim();
@@ -30,16 +33,16 @@ async function addPet() {
         medicalRecords: []
     };
 
-    await petsCollection.doc(rfid).set(data, { merge: true });
+    await setDoc(doc(petsCollection, rfid), data, { merge: true });
     loadPets();
 }
 
 async function loadPets() {
     const tableBody = document.querySelector('#petsTable tbody');
     tableBody.innerHTML = '';
-    const snapshot = await petsCollection.get();
-    snapshot.forEach(doc => {
-        const pet = doc.data();
+    const snapshot = await getDocs(petsCollection);
+    snapshot.forEach(docSnap => {
+        const pet = docSnap.data();
         const tr = document.createElement('tr');
         tr.innerHTML = \`
             <td>\${pet.rfid}</td>
@@ -64,16 +67,16 @@ async function searchByRFID() {
     const rfid = document.getElementById('rfidSearch').value.trim();
     if (!rfid) return alert('Enter RFID to search');
 
-    const doc = await petsCollection.doc(rfid).get();
-    if (!doc.exists) return alert('No data found for RFID: ' + rfid);
+    const docSnap = await getDoc(doc(petsCollection, rfid));
+    if (!docSnap.exists()) return alert('No data found for RFID: ' + rfid);
 
-    const pet = doc.data();
+    const pet = docSnap.data();
     alert(\`Owner: \${pet.ownerName}\nPet: \${pet.petName}\nDiagnosis: \${pet.diagnosis}\`);
 }
 
 async function deletePet(rfid) {
     if (!confirm('Delete this pet?')) return;
-    await petsCollection.doc(rfid).delete();
+    await deleteDoc(doc(petsCollection, rfid));
     loadPets();
 }
 
@@ -81,8 +84,8 @@ async function addMedicalRecord(rfid) {
     const record = prompt('Enter medical record:');
     if (!record) return;
 
-    await petsCollection.doc(rfid).update({
-        medicalRecords: firebase.firestore.FieldValue.arrayUnion(record)
+    await updateDoc(doc(petsCollection, rfid), {
+        medicalRecords: arrayUnion(record)
     });
     loadPets();
 }
