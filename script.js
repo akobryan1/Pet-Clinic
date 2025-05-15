@@ -125,6 +125,12 @@ window.deleteMedicalHistory = async function(docId) {
   window.searchMedicalHistory();
 };
 
+window.deletePet = async function(rfid) {
+  if (!confirm('Delete this pet?')) return;
+  await deleteDoc(doc(petsCollection, rfid));
+  window.loadPets();
+};
+
 window.loadPets = async function() {
   const tableBody = document.querySelector('#petsTable tbody');
   tableBody.innerHTML = '';
@@ -144,6 +150,7 @@ window.loadPets = async function() {
       <td></td>
       <td>
         <button onclick="addMedicalRecord('${pet.rfid}')">Add Record</button>
+        <button onclick="deletePet('${pet.rfid}')">Delete</button>
       </td>
     `;
     tableBody.appendChild(tr);
