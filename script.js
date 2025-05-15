@@ -35,7 +35,7 @@ window.addPet = async function() {
   if (!rfid) return alert('RFID is required');
 
   const data = {
-    RFID: rfid,
+    rfid: rfid,
     ownerName: document.getElementById('ownerName').value,
     contactNumber: document.getElementById('contactNumber').value,
     petName: document.getElementById('petName').value,
@@ -77,7 +77,7 @@ window.searchMedicalHistory = async function() {
   const rfid = document.getElementById('rfidHistorySearch').value.trim();
   if (!rfid) return alert('Enter RFID to search medical history');
 
-  const q = query(medicalHistoryCollection, where("RFID", "==", rfid), orderBy("timestamp", "desc"));
+  const q = query(medicalHistoryCollection, where("rfid", "==", rfid), orderBy("timestamp", "desc"));
   const snapshot = await getDocs(q);
 
   const tableBody = document.querySelector('#historyTable tbody');
@@ -133,7 +133,7 @@ window.loadPets = async function() {
     const pet = docSnap.data();
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${pet.RFID}</td>
+      <td>${pet.rfid}</td>
       <td>${pet.ownerName}</td>
       <td>${pet.contactNumber}</td>
       <td>${pet.petName}</td>
@@ -143,7 +143,7 @@ window.loadPets = async function() {
       <td>${pet.diagnosis}</td>
       <td></td>
       <td>
-        <button onclick="addMedicalRecord('${pet.RFID}')">Add Record</button>
+        <button onclick="addMedicalRecord('${pet.rfid}')">Add Record</button>
       </td>
     `;
     tableBody.appendChild(tr);
