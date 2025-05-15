@@ -1,17 +1,18 @@
-// Firebase config (replace with your own config)
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAZxkineyP_sEWykl-LqNoAP8mgqXev8qc",
+  authDomain: "pet-project-5192f.firebaseapp.com",
+  projectId: "pet-project-5192f",
+  storageBucket: "pet-project-5192f.firebasestorage.app",
+  messagingSenderId: "458685541624",
+  appId: "1:458685541624:web:978e8e3d4a4156ff251f0d",
+  measurementId: "G-VX7NZNJ3ZR"
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const petsCollection = db.collection('pets');
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 async function addPet() {
     const rfid = document.getElementById('rfid').value.trim();
