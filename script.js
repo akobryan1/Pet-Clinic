@@ -8,7 +8,6 @@ import {
   getDoc,
   deleteDoc,
   updateDoc,
-  arrayUnion,
   addDoc,
   query,
   where,
@@ -35,7 +34,7 @@ window.addPet = async function() {
   if (!rfid) return alert('RFID is required');
 
   const data = {
-    rfid: rfid,
+    rfid,
     ownerName: document.getElementById('ownerName').value,
     contactNumber: document.getElementById('contactNumber').value,
     petName: document.getElementById('petName').value,
@@ -48,28 +47,6 @@ window.addPet = async function() {
 
   await setDoc(doc(petsCollection, rfid), data, { merge: true });
   await addDoc(medicalHistoryCollection, data);
-  window.loadPets();
-};
-
-window.addMedicalRecord = async function(rfid) {
-  const record = prompt('Enter medical record:');
-  if (!record) return;
-
-  const petSnap = await getDoc(doc(petsCollection, rfid));
-  if (!petSnap.exists()) return alert('Pet not found!');
-
-  const petData = petSnap.data();
-
-  await updateDoc(doc(petsCollection, rfid), {
-    medicalRecords: arrayUnion(record)
-  });
-
-  await addDoc(medicalHistoryCollection, {
-    ...petData,
-    diagnosis: record,
-    timestamp: serverTimestamp()
-  });
-
   window.loadPets();
 };
 
@@ -147,9 +124,7 @@ window.loadPets = async function() {
       <td>${pet.breed}</td>
       <td>${pet.age}</td>
       <td>${pet.diagnosis}</td>
-      <td></td>
       <td>
-        <button onclick="addMedicalRecord('${pet.rfid}')">Add Record</button>
         <button onclick="deletePet('${pet.rfid}')">Delete</button>
       </td>
     `;
